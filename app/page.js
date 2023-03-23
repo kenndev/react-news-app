@@ -1,91 +1,77 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
-import styles from './page.module.css'
+"use client";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Inter } from "next/font/google";
+import NewsComponents from "./components/news/page";
 
-const inter = Inter({ subsets: ['latin'] })
+import FooterComponent from "./components/footer/page";
+import { Appbar } from "./appbar";
+import HeaderComponent from "./components/header/page";
+import { useSession } from "next-auth/react";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
+  const [articles, setArticles] = useState([]);
+  const [headerArticles, setHeaderArticles] = useState([]);
+  const [dateFilter, setDateFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const { data: session, status } = useSession();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      let url = "";
+      let result;
+      if (status === "authenticated") {
+        const accesstoken = session.user.accesstoken;
+        let bearer = `Bearer ` + accesstoken;
+        axios.defaults.withCredentials = true;
+        url = `http://localhost/api/filter`;
+        result = await axios.get(url, {
+          headers: {
+            Accept: "application/json",
+            Authorization: bearer,
+          },
+        });
+      } else {
+        url = `http://localhost/api/news`;
+        result = await axios.get(url);
+      }
+      const articles = result.data;
+      const headerRes = articles.slice(0, 3);
+      let difference = articles.filter((x) => !headerRes.includes(x));
+      setArticles(difference);
+      setLoading(false);
+      //const headerRes = result.data.sort(() => Math.random() - Math.random()).slice(0, 4);
+      setHeaderArticles(headerRes);
+    };
+    fetchData();
+  }, [dateFilter, categoryFilter]);
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <>
+      <Appbar />
+      
+      {loading ? (
+        <div class="flex items-center justify-center p-10">
+          <div
+            class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+            role="status"
           >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+            <span class="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+              Loading...
+            </span>
+          </div>
         </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-        <div className={styles.thirteen}>
-          <Image src="/thirteen.svg" alt="13" width={40} height={31} priority />
-        </div>
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://beta.nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={inter.className}>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p className={inter.className}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={inter.className}>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p className={inter.className}>Explore the Next.js 13 playground.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={inter.className}>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p className={inter.className}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+      ): ''}
+      {headerArticles && headerArticles.length ? (
+        <HeaderComponent articles={headerArticles} />
+      ) : null}
+      {articles && articles.length ? (
+        <NewsComponents articles={articles} search={false} />
+      ) : null}
+      <FooterComponent />
+    </>
+  );
 }
